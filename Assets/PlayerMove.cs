@@ -6,14 +6,31 @@ using TMPro;
 
 public class PlayerMove : MonoBehaviour
 {
+    public static PlayerMove Instance;
     public Tilemap elevationTilemap;
+    public TileBase pointBall;
+    public TileBase bigPointBall;
     public TMP_Text scoreText;
+    public GameObject WinText;
     public float moveSpeed = 5f; // Adjust this to control the speed of movement
     public SpriteRenderer playerSpriteRenderer;
     public Sprite[] sprites;
     private Rigidbody2D rb;
     private Vector2 movementDirection;
     private float playerScore;
+    private bool isPowered;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else{
+            Destroy(gameObject);
+        }
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -26,6 +43,11 @@ public class PlayerMove : MonoBehaviour
 
     void Update()
     {
+        if(isPowered)
+            playerSpriteRenderer.color = Color.red;
+        else
+            playerSpriteRenderer.color = Color.white;
+            
         if(Input.GetKey(KeyCode.W))
         {
             movementDirection = Vector2.up; 
@@ -78,14 +100,47 @@ public class PlayerMove : MonoBehaviour
         }
     }
 
-    void OnCollisionEnter2D(Collision2D collision)
+    IEnumerator PowerUp()
+    {
+        isPowered = true;
+        yield return new WaitForSeconds(5f);
+        isPowered = false;
+    }
+
+    public bool IsPowered()
+    {
+        return isPowered;
+    }
+
+    void OnTriggerEnter2D(Collider2D collision)
     {
         Vector3Int closestCell = elevationTilemap.WorldToCell(gameObject.transform.position);
         if(elevationTilemap.HasTile(closestCell)) // Eats ball
         {    
+            if(elevationTilemap.GetTile(closestCell) == bigPointBall)
+                StartCoroutine(PowerUp());
+
             elevationTilemap.SetTile(closestCell, null);
+            CheckForTiles();
             playerScore += 10;
             scoreText.text = "Score: " + playerScore;
+
         }
+    }
+
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        if(isPowered && collision.gameObject.tag == "Ghost")
+        {
+            collision.gameObject.SetActive(false);   
+            playerScore += 500;
+            Debug.Log("hit ghost");         
+        }
+    }
+
+    void CheckForTiles()
+    {
+        if(!elevationTilemap.ContainsTile(pointBall))
+            WinText.SetActive(true);
     }
 }
